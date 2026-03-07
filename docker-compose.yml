@@ -18,7 +18,7 @@ services:
 
     # Ports
     ports:
-      - "443:443"        # HTTPS (VPN masquerading as web traffic)
+      - "8443:8443"      # VPN port
       - "9090:9090"      # Metrics (optional, remove if metrics disabled)
 
     # Volumes

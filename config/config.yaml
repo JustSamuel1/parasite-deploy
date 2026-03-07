@@ -5,7 +5,7 @@
 
 server:
   # [required] Address and port for incoming connections
-  listen: ":443"
+  listen: ":8443"
 
   # [required] Paths to TLS certificate and key
   # For production — Let's Encrypt certificates

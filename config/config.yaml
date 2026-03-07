@@ -1,0 +1,131 @@
+# Parasite VPN Server — server configuration
+# Version 0.1
+
+# ─── Server ───────────────────────────────────────────────────
+
+server:
+  # [required] Address and port for incoming connections
+  listen: ":443"
+
+  # [required] Paths to TLS certificate and key
+  # For production — Let's Encrypt certificates
+  # Place fullchain.pem and privkey.pem in ./certs/ directory
+  tls_cert: "/app/certs/fullchain.pem"
+  tls_key:  "/app/certs/privkey.pem"
+
+  # [optional] Maximum number of concurrent sessions
+  # Default: 100
+  max_sessions: 100
+
+  # [optional] Timeout for inactive session (no traffic)
+  # Default: 5m
+  session_timeout: "5m"
+
+# ─── Cryptography ─────────────────────────────────────────────
+
+crypto:
+  # [required] Server X25519 private key in base64
+  # Generate with: docker run --rm <your-username>/parasite-vpn:latest --keygen
+  # Public key is derived from it automatically
+  private_key: "apwXl4jzqqR6xXDl0UqssT8v3eov5sH2+95c7wDADUo="
+
+  # [optional] Token validity window in seconds
+  # Increase if clients often have clock drift
+  # Default: 30
+  token_window_sec: 30
+
+# ─── Masquerading ─────────────────────────────────────────────
+
+mask:
+  # [required] Site to masquerade as
+  # Популярный сайт для маскировки. Рекомендации для обхода РКН:
+  # - https://www.microsoft.com (Microsoft - точно не заблокируют)
+  # - https://api.github.com (GitHub API - популярный, активный)
+  # - https://www.cloudflare.com (Cloudflare - CDN, блокировать = сломать интернет)
+  site: "https://api.github.com"
+
+  # [optional] Timeout for requests to masquerade site
+  # Default: 10s
+  proxy_timeout: "10s"
+
+  # [optional] Cache static content from masquerade site locally
+  # Reduces latency during probing, decreases upstream load
+  # Default: false
+  cache_static: false
+
+# ─── Tunnel ───────────────────────────────────────────────────
+
+tunnel:
+  # [required] Subnet for internal client IPs
+  # Server gets first address (.1), clients — from second (.2+)
+  subnet: "10.8.0.0/24"
+
+  # [optional] MTU of tunnel interface
+  # 1420 — with headroom for encryption over standard 1500
+  # Default: 1420
+  mtu: 1420
+
+  # [optional] DNS for tunnel clients
+  # Default: 1.1.1.1
+  dns: "1.1.1.1"
+
+  # [optional] Name of TUN interface in system
+  # Default: parasite0
+  interface: "parasite0"
+
+# ─── Tunnel Endpoints ─────────────────────────────────────────
+# Paths are fixed in protocol — client knows them without config.
+# Only change if you want non-standard masquerading for specific API.
+
+endpoints:
+  # [optional] Default: /api/v2/sync
+  upload: "/api/v2/sync"
+
+  # [optional] Default: /api/v2/stream
+  download: "/api/v2/stream"
+
+# ─── Logging ──────────────────────────────────────────────────
+
+log:
+  # [optional] Level: debug, info, warn, error
+  # Default: info
+  level: "info"
+
+  # [optional] Format: text, json
+  # json is convenient for collecting in ELK/Loki
+  # Default: text
+  format: "text"
+
+  # [optional] Path to log file. If not specified — stdout
+  # file: "/var/log/parasite/server.log"
+
+  # [optional] Separate audit log for authentication events
+  # Writes: successful sessions, failed attempts, replay attacks
+  # audit_file: "/var/log/parasite/audit.log"
+
+# ─── Metrics ──────────────────────────────────────────────────
+
+metrics:
+  # [optional] Enable Prometheus endpoint
+  # Default: false
+  enabled: false
+
+  # [optional] Address for metrics — separate port, not 443
+  # Default: :9090
+  listen: ":9090"
+
+# ─── Rate Limiting ────────────────────────────────────────────
+
+rate_limit:
+  # [optional] Maximum new connections from one IP per minute
+  # Default: 10
+  connections_per_minute: 10
+
+  # [optional] Maximum failed authentications from one IP
+  # After exceeding — ban for ban_duration
+  # Default: 5
+  max_auth_failures: 5
+
+  # [optional] Ban duration after exceeding auth failures
+  # Default: 10m
+  ban_duration: "10m"

@@ -1,9 +1,5 @@
-# Secrets and configuration
-config/config.yaml
+# TLS certificates only
 certs/
-
-# Environment files
-.env
 
 # Logs
 *.log

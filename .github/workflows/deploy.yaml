@@ -20,7 +20,7 @@ jobs:
         host: ${{ secrets.SERVER_HOST }}
         username: ${{ secrets.SERVER_USER }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
-        source: "docker-compose.yml,config/,setup.sh,.env.example"
+        source: "docker-compose.yml,config/"
         target: "${{ secrets.DEPLOY_PATH }}"
         rm: false
 
@@ -62,14 +62,37 @@ jobs:
           # Create certs directory
           mkdir -p certs
 
-          # Check for TLS certificates
+          # Setup TLS certificates
           if [ ! -f certs/fullchain.pem ] || [ ! -f certs/privkey.pem ]; then
-            echo "⚠️ WARNING: TLS certificates not found!"
-            echo "Please add certificates to certs/ directory:"
-            echo "  - certs/fullchain.pem"
-            echo "  - certs/privkey.pem"
+            echo "🔐 Getting Let's Encrypt certificate..."
+
+            # Install certbot if needed
+            if ! command -v certbot &> /dev/null; then
+              sudo apt-get update
+              sudo apt-get install -y certbot
+            fi
+
+            # Stop any service using port 80
+            sudo systemctl stop nginx 2>/dev/null || true
+            sudo systemctl stop apache2 2>/dev/null || true
+
+            # Get certificate using standalone mode (requires port 80)
+            sudo certbot certonly --standalone \
+              --non-interactive \
+              --agree-tos \
+              --email ${{ secrets.LETSENCRYPT_EMAIL }} \
+              -d parasite-vpn.website
+
+            # Copy certificates to deployment directory
+            sudo cp /etc/letsencrypt/live/parasite-vpn.website/fullchain.pem certs/
+            sudo cp /etc/letsencrypt/live/parasite-vpn.website/privkey.pem certs/
+            sudo chown $(whoami):$(whoami) certs/*.pem
+            chmod 644 certs/fullchain.pem
+            chmod 600 certs/privkey.pem
+
+            echo "✅ Let's Encrypt certificate obtained"
           else
-            echo "✅ TLS certificates found"
+            echo "✅ TLS certificates already exist"
           fi
 
     - name: Deploy Parasite VPN

@@ -18,8 +18,8 @@ services:
 
     # Ports
     ports:
-      - "443:443"       # VPN server
-      - "9090:9090"     # Metrics (optional, remove if metrics disabled)
+      - "443:443"        # HTTPS (VPN masquerading as web traffic)
+      - "9090:9090"      # Metrics (optional, remove if metrics disabled)
 
     # Volumes
     volumes:

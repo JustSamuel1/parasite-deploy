@@ -1,0 +1,110 @@
+name: Deploy Parasite VPN
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Deploy to server
+      uses: appleboy/scp-action@master
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        source: "docker-compose.yml,config/,setup.sh,.env.example"
+        target: "${{ secrets.DEPLOY_PATH }}"
+        rm: false
+
+    - name: Setup environment and generate keys
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          cd ${{ secrets.DEPLOY_PATH }}
+
+          # Create .env if not exists
+          if [ ! -f .env ]; then
+            cp .env.example .env
+            echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}" > .env
+            echo "✅ Created .env file"
+          fi
+
+          # Source environment
+          source .env
+
+          # Check if server keypair exists in config
+          if ! grep -q "YOUR_PRIVATE_KEY_HERE" config/config.yaml 2>/dev/null; then
+            echo "ℹ️ Server keys already configured"
+          else
+            echo "🔑 Generating server keypair..."
+            docker run --rm ${{ secrets.DOCKER_USERNAME }}/parasite-vpn:latest --keygen > /tmp/parasite-keys.txt
+
+            PRIVATE_KEY=$(grep "Private key:" /tmp/parasite-keys.txt | cut -d' ' -f3)
+
+            # Update config with generated private key
+            sed -i "s/YOUR_PRIVATE_KEY_HERE/$PRIVATE_KEY/" config/config.yaml
+
+            rm /tmp/parasite-keys.txt
+            echo "✅ Server keys generated and saved to config"
+          fi
+
+          # Create certs directory
+          mkdir -p certs
+
+          # Check for TLS certificates
+          if [ ! -f certs/fullchain.pem ] || [ ! -f certs/privkey.pem ]; then
+            echo "⚠️ WARNING: TLS certificates not found!"
+            echo "Please add certificates to certs/ directory:"
+            echo "  - certs/fullchain.pem"
+            echo "  - certs/privkey.pem"
+          else
+            echo "✅ TLS certificates found"
+          fi
+
+    - name: Deploy Parasite VPN
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          cd ${{ secrets.DEPLOY_PATH }}
+
+          # Source environment
+          source .env
+
+          # Stop existing container
+          docker-compose down || true
+
+          # Pull latest image
+          docker-compose pull
+
+          # Start container
+          docker-compose up -d
+
+          echo "⏳ Waiting for service to start..."
+          sleep 5
+
+          # Show status
+          docker-compose ps
+
+          # Show recent logs (including public key)
+          echo ""
+          echo "📋 Server logs (last 30 lines):"
+          docker-compose logs --tail=30
+
+          # Extract and display public key
+          echo ""
+          echo "🔑 Server public key:"
+          docker-compose logs | grep "Server public key" | tail -1 || echo "Public key not found in logs"

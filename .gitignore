@@ -1,0 +1,12 @@
+# Secrets and configuration
+config/config.yaml
+certs/
+
+# Environment files
+.env
+
+# Logs
+*.log
+
+# Docker volumes
+volumes/

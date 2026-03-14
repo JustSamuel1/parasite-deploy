@@ -4,9 +4,6 @@ services:
     container_name: parasite-vpn
     restart: unless-stopped
 
-    # Setup iptables and start server
-    command: /bin/sh -c "cd /app && iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o eth0 -j MASQUERADE && exec /app/parasite-server -config /app/config/config.yaml"
-
     # Required capabilities for TUN device
     cap_add:
       - NET_ADMIN

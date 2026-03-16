@@ -18,7 +18,8 @@ services:
 
     # Ports
     ports:
-      - "8443:8443"      # VPN port
+      - "8443:8443/tcp"  # VPN port (TCP for backwards compatibility)
+      - "8443:8443/udp"  # VPN port (UDP for HTTP/3/QUIC)
       - "9090:9090"      # Metrics (optional, remove if metrics disabled)
 
     # Volumes
